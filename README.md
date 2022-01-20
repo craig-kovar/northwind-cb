@@ -8,8 +8,12 @@ This process is implemented in two different phases to highlight the flexibility
 
 * [Data Model](#data-model)
 * [Migrating Stored Procedures](#migrating-stored-procedures)
+  - [Stored Procedure - CustOrderHistory](#stored-procedure-custorderhistory)
   - [CustOrderHist Lift and Shift](#custorderhist-lift-and-shift-approach)
   - [CustOrderHist Denormalized](#custorderhist-denormalized)
+  - [Stored Procedure - CustOrderDetails](#stored-procedure-custorderdetails)
+  - [CustOrderDetails Lift and Shift approach](#custorderdetails-lift-and-shift-approach)
+  - [CustOrderDetails Denormalized Approach](#custorderdetails-denormalized-approach)
 * [Appendix](#appendix)
 
 
@@ -125,6 +129,36 @@ Additionally we can then convert this statement to a named **prepared statement*
 
 ![Denormalized CustOrderHistory Results](./docs/images/cb-denorm-coh-results.png)
 
+### Stored Procedure - CustOrderDetails
+
+In this stored procedure we get all the products and price information for a given order.  The stored procedure is defined as follows
+
+![CustOrderDetails Stored Procedure](./docs/images/sp_custorderdetails.png)
+
+Executing this stored procedure will produce the following results
+
+![CustOrderDetails Stored Procedure Results](./docs/images/sp_custorddetail_results.png)
+
+#### CustOrderDetails Lift and Shift approach
+
+This stored procedure can be converted into **SQL++** with the lift and shift approach as shown below
+
+![CustOrderDetails Lift and Shift Query](./docs/images/sp-cb-custorddetail-query.png)
+
+We can then convert the query to either a ***named prepared statement*** and/or a ***user defined function*** similiar to what we did with the previous stored procedure.  Both approaches are shown below:
+
+![CustOrderDetail Lift and Shift UDF](./docs/images/udf-cb-cod.png)
+
+![CustOrderDetail Lift and Shift Prepared Query](./docs/images/ps-cod.png)
+
+![CustOrderDetail Lift and Shift Results](./docs/images/ps-cod-results.png)
+
+#### CustOrderDetails Denormalized Approach
+
+With the denormalized approach all the information we need is included in the Orders document so we again do not need to perform any joins.  This can be updated as shown below and then either converted to a ***prepared statement*** or a ***user defined function***
+
+![CustomerOrderDetails Query and Results](./docs/images/cb-denorm-cod.png)
+
 
 ## Appendix
 
@@ -167,3 +201,31 @@ FROM Northwind.Denormalized.Customers c USE KEYS ["ALFKI"]
        UNNEST myorders.Products myproducts
 GROUP BY myproducts.ProductName
 ORDER BY myproducts.ProductName ASC
+
+### Customer Order Details Statements
+
+> SELECT p.ProductName,
+       ROUND(od.UnitPrice,2) AS UnitPrice,
+       od.Quantity,
+       od.Discount * 100 AS Discount,
+       ROUND(od.Quantity * (1 - od.Discount) * od.UnitPrice,2) as ExtendedPrice
+FROM Northwind.LiftAndShift.OrderDetails od
+JOIN Northwind.LiftAndShift.Products p on (p.ProductID = od.ProductID)
+WHERE od.OrderID = $OrderID
+
+> prepare CustOrderDetail as SELECT p.ProductName,
+       ROUND(od.UnitPrice,2) AS UnitPrice,
+       od.Quantity,
+       od.Discount * 100 AS Discount,
+       ROUND(od.Quantity * (1 - od.Discount) * od.UnitPrice,2) as ExtendedPrice
+FROM Northwind.LiftAndShift.OrderDetails od
+JOIN Northwind.LiftAndShift.Products p on (p.ProductID = od.ProductID)
+WHERE od.OrderID = $OrderID;
+
+> SELECT lineItems.Products.ProductName,
+       ROUND(lineItems.UnitPrice,2) AS UnitPrice,
+       lineItems.Quantity,
+       lineItems.Discount * 100 AS Discount,
+       ROUND(lineItems.Quantity * (1 - lineItems.Discount) * lineItems.UnitPrice,2) AS ExtendedPrice
+FROM Northwind.Denormalized.Orders USE KEYS ["10250"]
+UNNEST LineItems lineItems
