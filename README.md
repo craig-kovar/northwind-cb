@@ -8,13 +8,13 @@ This process is implemented in two different phases to highlight the flexibility
 
 * [Data Model](#data-model)
 * [Migrating Stored Procedures](#migrating-stored-procedures)
-  - [Stored Procedure - CustOrderHistory](#stored-procedure-custorderhistory)
+  - [Stored Procedure - CustOrderHistory](#stored-procedure---custorderhistory)
   - [CustOrderHist Lift and Shift](#custorderhist-lift-and-shift-approach)
   - [CustOrderHist Denormalized](#custorderhist-denormalized)
-  - [Stored Procedure - CustOrderDetails](#stored-procedure-custorderdetails)
+  - [Stored Procedure - CustOrderDetails](#stored-procedure---custorderdetails)
   - [CustOrderDetails Lift and Shift approach](#custorderdetails-lift-and-shift-approach)
   - [CustOrderDetails Denormalized Approach](#custorderdetails-denormalized-approach)
-  - [Stored Procedure - CustOrdersOrders](#stored-procedure-custordersorders)
+  - [Stored Procedure - CustOrdersOrders](#stored-procedure---custordersorders)
 * [Appendix](#appendix)
 
 
