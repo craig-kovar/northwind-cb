@@ -14,6 +14,7 @@ This process is implemented in two different phases to highlight the flexibility
   - [Stored Procedure - CustOrderDetails](#stored-procedure-custorderdetails)
   - [CustOrderDetails Lift and Shift approach](#custorderdetails-lift-and-shift-approach)
   - [CustOrderDetails Denormalized Approach](#custorderdetails-denormalized-approach)
+  - [Stored Procedure - CustOrdersOrders](#stored-procedure-custordersorders)
 * [Appendix](#appendix)
 
 
@@ -159,6 +160,22 @@ With the denormalized approach all the information we need is included in the Or
 
 ![CustomerOrderDetails Query and Results](./docs/images/cb-denorm-cod.png)
 
+
+### Stored Procedure - CustOrdersOrders
+
+This stored procedure is a more straight forward query conversion exercise.  We will review what this looks like with both a lift and shift approach as well as denormalized document data model,  but will not show creating a UDF or Named Prepared Query
+
+The Stored Procedure CustOrdersOrders is defined as shown below
+
+![Stored Procedure CustOrdersOrders](./docs/images/sp-coo.png)
+
+The Lift and Shift approach would look like
+
+![CustOrdersOrders Lift and Shift](./docs/images/cb-coo-las.png)
+
+The denormalized approach is very similiar and would look like
+
+![CustOrdersOrders Denormalized](./docs/images/cb-denorm-coo.png)
 
 ## Appendix
 
