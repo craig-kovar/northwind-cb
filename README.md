@@ -15,6 +15,10 @@ This process is implemented in two different phases to highlight the flexibility
   - [CustOrderDetails Lift and Shift approach](#custorderdetails-lift-and-shift-approach)
   - [CustOrderDetails Denormalized Approach](#custorderdetails-denormalized-approach)
   - [Stored Procedure - CustOrdersOrders](#stored-procedure---custordersorders)
+  - [Note on remaining stored procedures](#note-on-remaining-stored-procedures)
+  - [Stored Procedure - Employee Sales By Country](#stored-procedure---employee-sales-by-country)
+  - [Employee Sales By Country Lift and Shift](#employee-sales-by-country-lift-and-shift)
+  - [Employee Sales By Country Denormalized](#employee-sales-by-country-denormalized)
 * [Appendix](#appendix)
 
 
@@ -177,6 +181,58 @@ The denormalized approach is very similiar and would look like
 
 ![CustOrdersOrders Denormalized](./docs/images/cb-denorm-coo.png)
 
+In addition we did create one additional GSI to support this query as
+
+> CREATE INDEX `idx_denorm_orders_custid` ON `Northwind`.`Denormalized`.`Orders`(`CustomerID`)
+
+### Note on remaining stored procedures
+
+***As we have covered how to create user defined procedures (UDFs) and Named Prepared Statements we will not show this for the remaining stored procedures.  Instead we will focus and highlight the approach between RDBMS SQL and NoSQL SQL++***
+
+### Stored Procedure - Employee Sales By Country
+
+This stored procedure is defined as follows
+
+![SP - Employee Sales By Country](./docs/images/sp-esbc.png)
+
+In addition this stored procedure uses the view **Order Subtotals** which is defined as follows
+
+![View - OrderDetails](./docs/images/view-orderdetails.png)
+
+Executing this stored procedure gives us the following Results
+
+![SP -Employee Sales By Country Results](./docs/images/sp_esbc_results.png)
+
+### Employee Sales By Country Lift and Shift
+
+To support this query we will introduce the following two indexes
+
+> CREATE INDEX adv_ShippedDate_OrderID ON `default`:`Northwind`.`LiftAndShift`.`Orders`(`ShippedDate`,`OrderID`)
+
+> CREATE INDEX `idx_las_employee_empid` ON `Northwind`.`LiftAndShift`.`Employees`(`EmployeeID`)
+
+We can write the query as follows:
+
+![Couchbase Lift and Shift - Employee Sales By Country](./docs/images/cb-esbc-las.png)
+
+This results in the following results.
+
+![Couchbase Lift and Shift - Employee Sales By Country Results](./docs/images/cb-esbc-las-results.png)
+
+### Employee Sales By Country Denormalized
+
+With this approach we first create the following index
+
+> create index idx_denorm_orders_shipdt on Northwind.Denormalized.Orders(ShippedDate)
+
+We can then update the query as follows
+
+![Couchbase Employee Sales By Country - Denormalized](./docs/images/cb-esbc-denorm.png)
+
+This gives us the following results.
+
+![Couchbase Employee Sales By Country - Denormalized Results](./docs/images/cb-esbc-denorm-results.png)
+
 ## Appendix
 
 ### Customer Order History Statements
@@ -246,3 +302,44 @@ WHERE od.OrderID = $OrderID;
        ROUND(lineItems.Quantity * (1 - lineItems.Discount) * lineItems.UnitPrice,2) AS ExtendedPrice
 FROM Northwind.Denormalized.Orders USE KEYS ["10250"]
 UNNEST LineItems lineItems
+
+### Employee Sales By Country Statements
+
+> CREATE INDEX adv_ShippedDate_OrderID ON `default`:`Northwind`.`LiftAndShift`.`Orders`(`ShippedDate`,`OrderID`)
+
+> CREATE INDEX `idx_las_employee_empid` ON `Northwind`.`LiftAndShift`.`Employees`(`EmployeeID`)
+
+> /* Common Table Expression (CTE) to serve as the VIEW from the RDBMS implementation.
+In this CTE we calculate the orders with a shipdate in the valid date range as well as the subtotal for
+the valid ship date orders */
+WITH OrderSubtotals AS (
+    SELECT od.OrderID,
+           SUM((od.UnitPrice*od.Quantity*(1-od.Discount)/100)*100) AS Subtotal
+    FROM Northwind.LiftAndShift.Orders orders
+        JOIN Northwind.LiftAndShift.OrderDetails od ON (orders.OrderID = od.OrderID)
+    WHERE orders.ShippedDate BETWEEN $beginning_date AND $ending_date
+    GROUP BY od.OrderID )
+/* Select the Employee data, Order Data and Sub Total for the orders that fell within specified date range */
+SELECT employee.Country,
+       employee.LastName,
+       employee.FirstName,
+       orders.ShippedDate,
+       orders.OrderID,
+       OrderSubtotals.Subtotal AS SaleAmount
+FROM OrderSubtotals
+JOIN Northwind.LiftAndShift.Orders orders on (orders.OrderID = OrderSubtotals.OrderID)
+JOIN Northwind.LiftAndShift.Employees employee on (orders.EmployeeID = employee.EmployeeID)
+ORDER BY OrderSubtotals.OrderID
+
+> create index idx_denorm_orders_shipdt on Northwind.Denormalized.Orders(ShippedDate)
+
+> SELECT orders.Employee.Country,
+       orders.Employee.FirstName,
+       orders.Employee.LastName,
+       orders.OrderID,
+       ROUND(SUM((lineItems.UnitPrice * lineItems.Quantity * (1-lineItems.Discount)/100)*100),2) AS SUBTOTAL
+FROM Northwind.Denormalized.Orders orders
+UNNEST LineItems lineItems
+WHERE orders.ShippedDate BETWEEN $beginning_date AND $ending_date
+GROUP BY orders.OrderID, orders.Employee.Country, orders.Employee.FirstName, orders.Employee.LastName
+ORDER BY orders.OrderID
